@@ -175,6 +175,8 @@ if __name__ == "__main__":
         demo_workflow()
     except requests.exceptions.ConnectionError:
         print("Error: Could not connect to API server.")
-        print("Make sure the server is running: docker-compose up -d")
+        print("Make sure the server is running:")
+        print("  - With Docker: docker-compose up -d")
+        print("  - Standalone: python -m uvicorn backend.api.main:app --reload")
     except Exception as e:
         print(f"Error: {e}")

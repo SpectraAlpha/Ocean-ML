@@ -45,6 +45,14 @@ class TrainingPipeline:
         """Prepare training and validation data"""
         raise NotImplementedError("Subclasses must implement prepare_data")
     
+    def get_criterion(self) -> nn.Module:
+        """Get loss criterion for training. Can be overridden by subclasses."""
+        return nn.CrossEntropyLoss()
+    
+    def is_classification_task(self) -> bool:
+        """Check if this is a classification task. Override in regression subclasses."""
+        return True
+    
     def train_epoch(
         self,
         model: nn.Module,
@@ -96,13 +104,18 @@ class TrainingPipeline:
                 loss = criterion(outputs, targets)
                 
                 running_loss += loss.item()
-                _, predicted = outputs.max(1)
-                total += targets.size(0)
-                correct += predicted.eq(targets).sum().item()
+                
+                # Only compute accuracy for classification tasks
+                if self.is_classification_task():
+                    _, predicted = outputs.max(1)
+                    total += targets.size(0)
+                    correct += predicted.eq(targets).sum().item()
+        
+        val_accuracy = 100.0 * correct / total if total > 0 else 0.0
         
         return {
             "val_loss": running_loss / len(val_loader),
-            "val_accuracy": 100.0 * correct / total
+            "val_accuracy": val_accuracy
         }
     
     def train(self, callback=None) -> Dict[str, Any]:
@@ -116,7 +129,8 @@ class TrainingPipeline:
         train_loader, val_loader = self.prepare_data()
         
         # Setup training
-        criterion = nn.CrossEntropyLoss()
+        # Use CrossEntropyLoss by default, but subclasses can override get_criterion()
+        criterion = self.get_criterion()
         if self.optimizer_name == "adam":
             optimizer = optim.Adam(model.parameters(), lr=self.learning_rate)
         elif self.optimizer_name == "sgd":

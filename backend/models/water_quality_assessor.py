@@ -30,7 +30,14 @@ class WaterQualityDataset(Dataset):
         if self.transform:
             image = self.transform(image)
         
-        return image, torch.tensor(score, dtype=torch.float32)
+        # Ensure score is a tensor with proper shape for multi-output regression
+        if isinstance(score, (list, tuple)):
+            score_tensor = torch.tensor(score, dtype=torch.float32)
+        else:
+            # If single value, create 5-dimensional output (for compatibility)
+            score_tensor = torch.tensor([score] * 5, dtype=torch.float32)
+        
+        return image, score_tensor
 
 
 class WaterQualityAssessor(nn.Module):
@@ -114,6 +121,15 @@ class WaterQualityPipeline(TrainingPipeline):
         )
         
         return train_loader, val_loader
+    
+    def get_criterion(self):
+        """Override to use MSELoss for regression"""
+        import torch.nn as nn
+        return nn.MSELoss()
+    
+    def is_classification_task(self):
+        """This is a regression task, not classification"""
+        return False
     
     def train_epoch(self, model, train_loader, optimizer, criterion):
         """Override train_epoch for regression task"""
